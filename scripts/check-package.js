@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import packageInfo from '../package.json' with { type: 'json' };
 
 const archive = resolve(process.argv[2] ?? `4onv-commit-scope-audit-${packageInfo.version}.tgz`);
@@ -19,14 +19,17 @@ function run(...args) {
 }
 
 try {
+  const filename = basename(archive);
+  copyFileSync(archive, join(dir, filename));
+  const output = run(npm, '--prefix', '.', 'exec', '--offline', '--yes',
+    `--package=./${filename}`, '--', 'commit-scope-audit', 'demo');
+  assert.match(output, /git status --porcelain: \(empty\)/);
+  assert.match(output, /OUTSIDE "outside-plan.txt"  committed/);
   run(npm, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', archive);
   const binary = process.platform === 'win32' ? 'commit-scope-audit.cmd' : 'commit-scope-audit';
   assert.ok(existsSync(join(dir, 'node_modules', '.bin', binary)), 'npm did not link the executable');
   assert.equal(run(npm, 'exec', '--offline', '--', 'commit-scope-audit', '--version').trim(), packageInfo.version);
-  const output = run(npm, 'exec', '--offline', '--', 'commit-scope-audit', 'demo');
-  assert.match(output, /git status --porcelain: \(empty\)/);
-  assert.match(output, /OUTSIDE "outside-plan.txt"  committed/);
-  console.log('Installed the archive offline and ran the linked CLI and synthetic demo.');
+  console.log('Verified the offline quick start and installed the archive with a working CLI.');
 } finally {
   rmSync(dir, { force: true, recursive: true });
 }

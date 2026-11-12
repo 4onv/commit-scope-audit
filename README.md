@@ -6,10 +6,10 @@ Catch out-of-scope files after a coding agent commits its work. Pin the task's s
 
 ## Try it in a disposable repository
 
-Run the demo directly from the GitHub release with Node.js 22+ and Git on your path. Review the [release assets and checksums](https://github.com/4onv/commit-scope-audit/releases/tag/v0.1.0) to download and install the archive locally.
+Download the archive and check its digest against `SHA256SUMS`. With Node.js 22+ and Git on your path, run this command from the download directory. [Release archive and checksums](https://github.com/4onv/commit-scope-audit/releases/tag/v0.1.1)
 
 ```sh
-npm exec --yes --package=https://github.com/4onv/commit-scope-audit/releases/download/v0.1.0/4onv-commit-scope-audit-0.1.0.tgz -- commit-scope-audit demo
+npm --prefix . exec --offline --yes --package=./4onv-commit-scope-audit-0.1.1.tgz -- commit-scope-audit demo
 ```
 
 The demo creates and cleans up a temporary repository with synthetic files. Git status is empty after the executor commits, and the audit still identifies the committed path.
@@ -26,7 +26,7 @@ From a source checkout, run `node bin/commit-scope-audit.js demo` with no instal
 
 ## Review a task
 
-Install the downloaded archive with `npm install --global ./4onv-commit-scope-audit-0.1.0.tgz`. Start with a clean task branch or linked worktree. Save the plan somewhere outside that worktree that the executor cannot edit.
+Install the downloaded archive with `npm install --global ./4onv-commit-scope-audit-0.1.1.tgz`. Start with a clean task branch or linked worktree. Save the plan somewhere outside that worktree that the executor cannot edit.
 
 ```sh
 commit-scope-audit pin --allow src/parser/ --allow tests/parser.test.js --out ../parser-task.json
@@ -65,7 +65,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      - uses: 4onv/commit-scope-audit@v0.1.0
+      - uses: 4onv/commit-scope-audit@v0.1.1
         with:
           base: ${{ github.event.pull_request.base.sha }}
           allow: |

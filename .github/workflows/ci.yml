@@ -22,7 +22,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm pack --ignore-scripts
-      - run: npm run check:package -- 4onv-commit-scope-audit-0.1.0.tgz
+      - run: npm run check:package
   action:
     name: Composite action accepts allowed and rejects committed outside paths
     runs-on: ubuntu-latest
