@@ -49,23 +49,28 @@ Use `--format json` for the versioned report with full commit IDs, layer names, 
 The composite action runs the same CLI and writes the report to the job summary. Use a full checkout with Node.js 22+ and Git available. This example assumes the checked-out PR head contains the trusted base in its first-parent history. If the target branch advanced, rebase the task branch or use the original trusted task base.
 
 ```yaml
+name: Task scope
+on: pull_request
 permissions:
   contents: read
-steps:
-  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    with:
-      ref: ${{ github.event.pull_request.head.sha }}
-      fetch-depth: 0
-      persist-credentials: false
-  - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-    with:
-      node-version: 24
-  - uses: 4onv/commit-scope-audit@v0.1.0
-    with:
-      base: ${{ github.event.pull_request.base.sha }}
-      allow: |
-        src/parser/
-        tests/parser.test.js
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - uses: 4onv/commit-scope-audit@v0.1.0
+        with:
+          base: ${{ github.event.pull_request.base.sha }}
+          allow: |
+            src/parser/
+            tests/parser.test.js
 ```
 
 Use a trusted workflow and allowlist when enforcing a gate. The action fails on a scope violation or audit error and exposes `exit-code` so callers can distinguish them.
