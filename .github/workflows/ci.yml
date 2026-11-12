@@ -1,0 +1,82 @@
+name: CI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  package:
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm pack --ignore-scripts
+      - run: npm run check:package -- 4onv-commit-scope-audit-0.1.0.tgz
+  action:
+    name: Composite action accepts allowed and rejects committed outside paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - id: fixture
+        shell: bash
+        run: |
+          dir="$RUNNER_TEMP/synthetic scope"
+          git init --initial-branch=main "$dir"
+          cd "$dir"
+          git config user.name 'Synthetic CI fixture'
+          git config user.email fixture@example.invalid
+          mkdir -p src
+          printf 'initial\n' > 'src/allowed file.txt'
+          git add -A
+          git commit -m 'Synthetic baseline'
+          printf 'base=%s\nrepository=%s\n' "$(git rev-parse HEAD)" "$dir" >> "$GITHUB_OUTPUT"
+          printf 'allowed\n' > 'src/allowed file.txt'
+          git commit -am 'In-scope synthetic commit'
+      - id: accepted
+        uses: ./
+        with:
+          base: ${{ steps.fixture.outputs.base }}
+          repository: ${{ steps.fixture.outputs.repository }}
+          allow: |
+            src/allowed file.txt
+            test/
+      - shell: bash
+        working-directory: ${{ steps.fixture.outputs.repository }}
+        run: |
+          printf 'unrelated\n' > outside-plan.txt
+          git add -- outside-plan.txt
+          git commit -m 'Out-of-scope synthetic commit'
+          test -z "$(git status --porcelain)"
+      - id: rejected
+        uses: ./
+        continue-on-error: true
+        with:
+          base: ${{ steps.fixture.outputs.base }}
+          repository: ${{ steps.fixture.outputs.repository }}
+          allow: src/
+      - shell: bash
+        env:
+          ACCEPTED: ${{ steps.accepted.outputs.exit-code }}
+          REJECTED: ${{ steps.rejected.outputs.exit-code }}
+          REJECTED_OUTCOME: ${{ steps.rejected.outcome }}
+        run: |
+          test "$ACCEPTED" = 0
+          test "$REJECTED" = 1
+          test "$REJECTED_OUTCOME" = failure

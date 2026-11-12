@@ -1,0 +1,41 @@
+name: Commit Scope Audit
+description: Audit each first-parent commit and the Git worktree against an explicit path allowlist.
+inputs:
+  base:
+    description: Full SHA of the trusted starting commit.
+    required: true
+  allow:
+    description: Literal repository-relative paths, one per line. End directories with a slash.
+    required: true
+  repository:
+    description: Path to the audited checkout.
+    default: '.'
+outputs:
+  exit-code:
+    description: 0 for within scope, 1 for a scope violation, 2 for an audit error.
+    value: ${{ steps.check.outputs.exit-code }}
+runs:
+  using: composite
+  steps:
+    - id: check
+      shell: bash
+      env:
+        AUDIT_BASE: ${{ inputs.base }}
+        AUDIT_ALLOW: ${{ inputs.allow }}
+        AUDIT_REPOSITORY: ${{ inputs.repository }}
+      run: |
+        args=()
+        while IFS= read -r path; do
+          if [[ -n "$path" ]]; then args+=("--allow=$path"); fi
+        done <<< "$AUDIT_ALLOW"
+        report=$(mktemp)
+        trap 'rm -f -- "$report"' EXIT
+        status=0
+        node "$GITHUB_ACTION_PATH/bin/commit-scope-audit.js" check \
+          --repo="$AUDIT_REPOSITORY" --base="$AUDIT_BASE" --format=markdown \
+          "${args[@]}" > "$report" || status=$?
+        if [[ -s "$report" ]]; then
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        printf 'exit-code=%s\n' "$status" >> "$GITHUB_OUTPUT"
+        exit "$status"
