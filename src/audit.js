@@ -89,7 +89,28 @@ function inspectWorkingTree(root, head) {
 
 export function audit(cwd, input) {
   const plan = validatePlan(input);
-  const { root, head } = repository(cwd);
+  return auditResolved(repository(cwd), plan);
+}
+
+/** Derive a fresh comparison base for rebased branches and CI checkouts. */
+export function auditAgainstUpstream(cwd, upstream, allow) {
+  const checkout = repository(cwd);
+  const { root, head } = checkout;
+  if (typeof upstream !== 'string' || !upstream || upstream.startsWith('-') ||
+      /[\u0000-\u0020\u007f]/u.test(upstream)) {
+    throw new Error('Provide a local upstream commit or ref.');
+  }
+  const upstreamCommit = gitText(root, 'rev-parse', '--verify', '--end-of-options', upstream + '^{commit}');
+  if (!isCommitId(upstreamCommit)) throw new Error('Git did not return a full upstream commit ID.');
+  const bases = gitText(root, 'merge-base', '--all', upstreamCommit, head).split(/\r?\n/u);
+  if (bases.length !== 1 || !isCommitId(bases[0])) {
+    throw new Error('Upstream mode requires a single merge base. Supply an explicit first-parent base instead.');
+  }
+  const plan = validatePlan({ version, base: bases[0], allow });
+  return { ...auditResolved(checkout, plan), upstream: { commit: upstreamCommit } };
+}
+
+function auditResolved({ root, head }, plan) {
   const commits = commitRange(root, plan.base, head);
   const changes = new Map();
 

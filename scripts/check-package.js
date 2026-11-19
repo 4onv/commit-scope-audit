@@ -29,6 +29,7 @@ try {
   const binary = process.platform === 'win32' ? 'commit-scope-audit.cmd' : 'commit-scope-audit';
   assert.ok(existsSync(join(dir, 'node_modules', '.bin', binary)), 'npm did not link the executable');
   assert.equal(run(npm, 'exec', '--offline', '--', 'commit-scope-audit', '--version').trim(), packageInfo.version);
+  assert.match(run(npm, 'exec', '--offline', '--', 'commit-scope-audit', 'check', '--help'), /--upstream/u);
   console.log('Verified the offline quick start and installed the archive with a working CLI.');
 } finally {
   rmSync(dir, { force: true, recursive: true });

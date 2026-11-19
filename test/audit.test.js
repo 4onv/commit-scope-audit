@@ -44,6 +44,31 @@ function fixture(t) {
   return { dir, repo, write, git, cli, commit, base };
 }
 
+test('upstream audit recalculates the base after a real rebase and checks local edits', t => {
+  const { git, write, commit, cli, base } = fixture(t);
+  git('switch', '-c', 'task');
+  write('src/file.txt', 'task change');
+  commit('Task change');
+  git('switch', 'main');
+  write('notes.txt', 'upstream change');
+  const upstream = commit('Upstream change');
+  git('switch', 'task');
+  git('rebase', 'main');
+  const check = (...flags) => cli('check', ...flags, '--allow', 'src/', '--format', 'json');
+  const againstOldBase = check('--base', base);
+  assert.equal(againstOldBase.status, 1);
+  const againstUpstream = check('--upstream', 'refs/heads/main');
+  assert.equal(againstUpstream.status, 0, againstUpstream.stderr);
+  const report = JSON.parse(againstUpstream.stdout);
+  assert.equal(report.base, upstream);
+  assert.equal(report.upstream.commit, upstream);
+  assert.deepEqual(report.paths.map(row => row.path), ['src/file.txt']);
+  write('new-notes.txt');
+  assert.equal(check('--upstream', 'main').status, 1);
+  assert.equal(check('--upstream', 'does-not-exist').status, 2);
+  assert.equal(check('--upstream', 'main', '--base', base).status, 2);
+});
+
 test('reports a committed violation when the worktree is clean', t => {
   const f = fixture(t);
   const plan = pin(f.repo, ['src/']);

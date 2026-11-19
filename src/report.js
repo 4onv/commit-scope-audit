@@ -11,6 +11,7 @@ export function render(report, format = 'text') {
     `${report.ok ? 'PASS' : 'FAIL'}  ${count} out-of-scope path(s) of ${report.paths.length} changed`,
     `Base    ${report.base}`,
     `HEAD    ${report.head}`,
+    ...(report.upstream ? [`Upstream ${report.upstream.commit}`] : []),
     `Range   ${report.commitCount} first-parent commit(s)`,
     `Allow   ${report.allow.map(quote).join(', ')}`,
   ];

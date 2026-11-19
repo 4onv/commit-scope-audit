@@ -6,10 +6,10 @@ Catch out-of-scope files after a coding agent commits its work. Pin the task's s
 
 ## Try it in a disposable repository
 
-Download the archive and check its digest against `SHA256SUMS`. With Node.js 22+ and Git on your path, run this command from the download directory. [Release archive and checksums](https://github.com/4onv/commit-scope-audit/releases/tag/v0.1.1)
+Download the archive and check its digest against `SHA256SUMS`. With Node.js 22+ and Git on your path, run this command from the download directory. [Release archive and checksums](https://github.com/4onv/commit-scope-audit/releases/tag/v0.2.0)
 
 ```sh
-npm --prefix . exec --offline --yes --package=./4onv-commit-scope-audit-0.1.1.tgz -- commit-scope-audit demo
+npm --prefix . exec --offline --yes --package=./4onv-commit-scope-audit-0.2.0.tgz -- commit-scope-audit demo
 ```
 
 The demo creates and cleans up a temporary repository with synthetic files. Git status is empty after the executor commits, and the audit still identifies the committed path.
@@ -26,7 +26,7 @@ From a source checkout, run `node bin/commit-scope-audit.js demo` with no instal
 
 ## Review a task
 
-Install the downloaded archive with `npm install --global ./4onv-commit-scope-audit-0.1.1.tgz`. Start with a clean task branch or linked worktree. Save the plan somewhere outside that worktree that the executor cannot edit.
+Install the downloaded archive with `npm install --global ./4onv-commit-scope-audit-0.2.0.tgz`. Start with a clean task branch or linked worktree. Save the plan somewhere outside that worktree that the executor cannot edit.
 
 ```sh
 commit-scope-audit pin --allow src/parser/ --allow tests/parser.test.js --out ../parser-task.json
@@ -43,6 +43,16 @@ Each first-parent commit is compared to its parent, so a path changed in one com
 - Exit `2` means the audit could not run. Check the error and retry.
 
 Use `--format json` for the versioned report with full commit IDs, layer names, and the matching rule or `null` for each path. Use `--format markdown` for a copyable report in a review. An audited checkout can also be checked with `check --base <full-commit-id> --allow <path>` using a base and rules supplied by a trusted caller.
+
+## Review a rebased branch
+
+```sh
+commit-scope-audit check --upstream origin/main --allow src/ --allow test/ --format json
+```
+
+Use `--upstream` when you want to audit the current branch against a locally available integration ref. The report records the resolved upstream commit and the single merge base used for the audit. Git must have enough local history to find that base, and it must lie on the checkout's first-parent history. Fetch the intended upstream ref before running the check if your local copy is stale. [Git merge-base reference](https://git-scm.com/docs/git-merge-base)
+
+The check continues to include committed, staged, unstaged and untracked paths. Use the pinned plan workflow when you need to audit against the exact pre-task snapshot, including commits already integrated upstream.
 
 ## GitHub Actions
 
@@ -65,7 +75,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      - uses: 4onv/commit-scope-audit@v0.1.1
+      - uses: 4onv/commit-scope-audit@v0.2.0
         with:
           base: ${{ github.event.pull_request.base.sha }}
           allow: |

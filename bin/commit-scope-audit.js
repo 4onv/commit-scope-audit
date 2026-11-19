@@ -2,7 +2,7 @@
 import { writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import packageInfo from '../package.json' with { type: 'json' };
-import { audit, pin, readPlan } from '../src/audit.js';
+import { audit, auditAgainstUpstream, pin, readPlan } from '../src/audit.js';
 import { demo } from '../src/demo.js';
 import { quote, render } from '../src/report.js';
 
@@ -10,6 +10,8 @@ const help = `Usage:
   commit-scope-audit pin --allow <path> [--allow <path> ...] [--out <file>] [-C <repo>]
   commit-scope-audit check --plan <file> [--format text|json|markdown] [-C <repo>]
   commit-scope-audit check --base <full-commit-id> --allow <path> [--allow <path> ...]
+                           [--format text|json|markdown] [-C <repo>]
+  commit-scope-audit check --upstream <local-ref> --allow <path> [--allow <path> ...]
                            [--format text|json|markdown] [-C <repo>]
   commit-scope-audit demo
 
@@ -22,7 +24,7 @@ const allow = { type: 'string', multiple: true, default: [] };
 const options = {
   pin: { repo, allow, out: { type: 'string' } },
   check: {
-    repo, allow, plan: { type: 'string' }, base: { type: 'string' },
+    repo, allow, plan: { type: 'string' }, base: { type: 'string' }, upstream: { type: 'string' },
     format: { type: 'string', default: 'text' },
   },
   demo: {},
@@ -61,11 +63,13 @@ function main([command, ...args]) {
     throw new Error('--format must be text, json, or markdown.');
   }
   const usePlan = values.plan !== undefined;
-  if (usePlan ? values.base !== undefined || values.allow.length > 0 : !values.base) {
-    throw new Error('Use --plan FILE or supply a full --base commit ID and --allow paths.');
+  const modes = [values.plan, values.base, values.upstream].filter(value => value !== undefined);
+  if (modes.length !== 1 || (usePlan && values.allow.length)) {
+    throw new Error('Use --plan FILE, --base COMMIT with --allow, or --upstream REF with --allow.');
   }
-  const plan = usePlan ? readPlan(values.plan) : { version: 1, base: values.base, allow: values.allow };
-  const report = audit(values.repo, plan);
+  const report = values.upstream !== undefined
+    ? auditAgainstUpstream(values.repo, values.upstream, values.allow)
+    : audit(values.repo, usePlan ? readPlan(values.plan) : { version: 1, base: values.base, allow: values.allow });
   console.log(render(report, values.format));
   return report.ok ? 0 : 1;
 }
